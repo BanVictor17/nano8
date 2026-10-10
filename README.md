@@ -6,9 +6,9 @@ A custom 8-bit, multi-cycle processor for the Tang Nano 9K FPGA board.
 
 An 8-bit combinational ALU and its testbench are implemented. All 12 directed
 test cases pass with Icarus Verilog. An eight-register file and its testbench
-are also implemented, with 39 checks of both read outputs passing in Icarus
-Verilog. No CPU instructions have been implemented, and no board validation
-has been completed yet.
+are also implemented, and the register file tests pass with Icarus Verilog.
+No CPU instructions have been implemented, and no board validation has been
+completed yet.
 
 ## Target and tools
 
@@ -106,11 +106,14 @@ if ($LASTEXITCODE -ne 0) { throw 'Register file tests failed' }
 Expected success message:
 
 ```text
-Register file tests passed (39 checks)
+Register file tests passed
 ```
 
 `sim/tb_regfile8.sv` checks reset clearing every register, writes to all eight
 registers, independent read addresses, disabled writes, reads before and after
 a write to the selected register, and preservation of other registers. It also
-checks that reset only takes effect on a rising edge and has priority over a
-write. The simulated clock period is 10 ns; this is a testbench timing choice.
+checks that writes do not occur on a falling edge, and that reset only takes
+effect on a rising edge and has priority over a write. Clock edges are advanced
+explicitly with `clock_cycles`, which holds the clock low for 1 ns and then
+high for 1 ns per cycle. Combinational reads are checked after `#1` without
+advancing the clock. These delays are testbench timing choices.
