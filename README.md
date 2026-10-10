@@ -1,0 +1,62 @@
+# nano8
+
+A custom 8-bit, multi-cycle processor for the Tang Nano 9K FPGA board.
+
+## Status
+
+The repository is at the initial setup stage. No RTL modules, testbenches, or
+CPU instructions have been implemented yet. No simulation or board validation
+has been completed.
+
+## Target and tools
+
+- Board: Tang Nano 9K
+- FPGA: GW1NR-LV9QN88PC6/I5, version C
+- Board clock: 27 MHz
+- Host: Windows with PowerShell
+- FPGA toolchain: GOWIN FPGA Designer Education
+- RTL simulation: Icarus Verilog (`iverilog` and `vvp`)
+
+## Planned architecture
+
+The processor will use eight general-purpose 8-bit registers, an ALU, a program
+counter, an instruction register, a synchronous instruction ROM, and an FSM
+control unit. Later stages will add a stored zero flag, data RAM, and GPIO,
+timer, and UART peripherals accessed through memory-mapped I/O.
+
+Address widths, instruction width, and instruction encoding have not been
+defined yet. The initial programs will be encoded manually in ROM.
+
+## First module: 8-bit ALU
+
+The first RTL module will be `rtl/alu8.sv`. Its interface is:
+
+| Port | Direction | Width | Meaning |
+| --- | --- | --- | --- |
+| `a` | Input | 8 bits | First operand |
+| `b` | Input | 8 bits | Second operand |
+| `op` | Input | 3 bits | ALU operation selector |
+| `result` | Output | 8 bits | Combinational result |
+| `zero` | Output | 1 bit | High when `result` is zero |
+
+| `op` | Operation | Result |
+| --- | --- | --- |
+| `3'b000` | ADD | `a + b`, modulo 256 |
+| `3'b001` | SUB | `a - b`, modulo 256 |
+| `3'b010` | AND | Bitwise `a & b` |
+| `3'b011` | OR | Bitwise `a \| b` |
+| `3'b100` | XOR | Bitwise `a ^ b` |
+| `3'b101` | PASS_B | `b` |
+| `3'b110`, `3'b111` | Reserved | `8'h00` |
+
+These selectors are local to the ALU; they are not CPU instruction encodings.
+The ALU will have no clock, reset, or internal state. Carry and signed overflow
+will not be exposed. Its `zero` output will be combinational; the CPU's stored
+zero flag will be defined when instruction execution is implemented.
+
+## Simulation
+
+The local Icarus executables are `C:\iverilog\bin\iverilog.exe` and
+`C:\iverilog\bin\vvp.exe`. Runnable commands will be added with the first
+implemented module and testbench. Generated simulation output belongs in
+`build/`.
