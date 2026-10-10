@@ -5,8 +5,10 @@ A custom 8-bit, multi-cycle processor for the Tang Nano 9K FPGA board.
 ## Status
 
 An 8-bit combinational ALU and its testbench are implemented. All 12 directed
-test cases pass with Icarus Verilog. No CPU instructions have been implemented,
-and no board validation has been completed yet.
+test cases pass with Icarus Verilog. An eight-register file and its testbench
+are also implemented, with 39 checks of both read outputs passing in Icarus
+Verilog. No CPU instructions have been implemented, and no board validation
+has been completed yet.
 
 ## Target and tools
 
@@ -54,6 +56,18 @@ The ALU has no clock, reset, or internal state. Carry and signed overflow
 are not exposed. Its `zero` output is combinational; the CPU's stored
 zero flag will be defined when instruction execution is implemented.
 
+## Register file
+
+`rtl/regfile8.sv` stores eight 8-bit registers. Two independent combinational
+read ports select registers through 3-bit addresses. One write port updates
+the selected register on a rising clock edge when `write_en` is high.
+
+The active-high synchronous reset clears all eight registers and takes
+priority over a write. Without reset or an enabled write, the contents are
+preserved. All registers, including register zero, are writable. If a read
+port selects the register being written, it reflects the new value after
+the clocked update and combinational propagation.
+
 ## Simulation
 
 The local Icarus executables are `C:\iverilog\bin\iverilog.exe` and
@@ -78,3 +92,25 @@ ALU tests passed (12 checks)
 wraparound, zero results, and the combinational `zero` output. Each case waits
 1 ns before checking the outputs and uses `$fatal` on a mismatch. Generated
 simulation output belongs in `build/` and is ignored by Git.
+
+Run the register file testbench from the same directory:
+
+```powershell
+New-Item -ItemType Directory -Path 'build' -Force | Out-Null
+& 'C:\iverilog\bin\iverilog.exe' -g2012 -Wall -s tb_regfile8 -o 'build\tb_regfile8.vvp' 'rtl\regfile8.sv' 'sim\tb_regfile8.sv'
+if ($LASTEXITCODE -ne 0) { throw 'Register file testbench compilation failed' }
+& 'C:\iverilog\bin\vvp.exe' 'build\tb_regfile8.vvp'
+if ($LASTEXITCODE -ne 0) { throw 'Register file tests failed' }
+```
+
+Expected success message:
+
+```text
+Register file tests passed (39 checks)
+```
+
+`sim/tb_regfile8.sv` checks reset clearing every register, writes to all eight
+registers, independent read addresses, disabled writes, reads before and after
+a write to the selected register, and preservation of other registers. It also
+checks that reset only takes effect on a rising edge and has priority over a
+write. The simulated clock period is 10 ns; this is a testbench timing choice.
