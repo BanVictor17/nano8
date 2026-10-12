@@ -4,12 +4,10 @@ A custom 8-bit, multi-cycle processor for the Tang Nano 9K FPGA board.
 
 ## Status
 
-An 8-bit combinational ALU and its testbench are implemented. All 12 directed
-test cases pass with Icarus Verilog. An eight-register file and its testbench
-are also implemented, and the register file tests pass with Icarus Verilog.
-An 8-bit program counter and its testbench are also implemented, and the PC
-tests pass with Icarus Verilog. No CPU instructions have been implemented,
-and no board validation has been completed yet.
+The 8-bit ALU, eight-register file, 8-bit program counter, and synchronous
+instruction ROM are implemented. Icarus Verilog simulations pass for these
+modules and for the PC-to-ROM read timing. Instruction decoding and execution
+have not been implemented, and no board validation has been completed yet.
 
 ## Target and tools
 
@@ -27,10 +25,10 @@ counter, an instruction register, a synchronous instruction ROM, and an FSM
 control unit. Later stages will add a stored zero flag, data RAM, and GPIO,
 timer, and UART peripherals accessed through memory-mapped I/O.
 
-The program counter is 8 bits wide and will address 256 instruction words in
-ROM. Advancing the PC by one selects the next instruction word. Instruction
-width, instruction encoding, and data memory address width have not been
-defined yet. The initial programs will be encoded manually in ROM.
+The program counter is 8 bits wide and the ROM contains 256 words of 16 bits
+each. Advancing the PC by one selects the next instruction word. Instruction
+encoding and data memory address width have not been defined yet. The initial
+programs will be encoded manually in ROM.
 
 ## 8-bit ALU
 
@@ -77,6 +75,27 @@ the clocked update and combinational propagation.
 active-high synchronous reset clears the PC, `load_en` loads `load_addr`, or
 `inc_en` increments the PC, in that priority order. Without an active control,
 the PC holds its value. Incrementing 255 wraps to zero.
+
+## Instruction ROM
+
+`rtl/instruction_rom.sv` uses an 8-bit address and a registered 16-bit output.
+On each rising clock edge, `instr` receives the word selected by `addr` before
+the edge. The output holds its value between rising edges and is unknown in
+simulation before the first read.
+
+The current contents are test words:
+
+| Address | Value |
+| --- | --- |
+| 0 | 1000 |
+| 1 | 2000 |
+| 2 | 3000 |
+| 255 | 50000 |
+| All other addresses | 0 |
+
+When the PC and ROM share a clock, the ROM reads the PC value from before the
+edge, including when the PC increments or loads an address. The new PC value
+selects the word for the next read.
 
 ## Simulation
 
@@ -149,3 +168,24 @@ enables disabled, address loading, reset and load priority, and wraparound
 from 255 to zero. It also checks that changing inputs or applying a falling
 clock edge does not update the PC. Clock edges are advanced explicitly with
 the same `clock_cycles` task used in the register file testbench.
+
+Run the instruction ROM testbench from the same directory:
+
+```powershell
+New-Item -ItemType Directory -Path 'build' -Force | Out-Null
+& 'C:\iverilog\bin\iverilog.exe' -g2012 -Wall -s tb_instruction_rom -o 'build\tb_instruction_rom.vvp' 'rtl\instruction_rom.sv' 'rtl\pc8.sv' 'sim\tb_instruction_rom.sv'
+if ($LASTEXITCODE -ne 0) { throw 'Instruction ROM testbench compilation failed' }
+& 'C:\iverilog\bin\vvp.exe' 'build\tb_instruction_rom.vvp'
+if ($LASTEXITCODE -ne 0) { throw 'Instruction ROM tests failed' }
+```
+
+Expected success message:
+
+```text
+Instruction ROM tests passed
+```
+
+`sim/tb_instruction_rom.sv` checks the contents at all 256 addresses and the
+registered output timing. A second ROM instance in the testbench is connected
+to `pc8` to verify reads during PC incrementing, holding, loading, and
+wraparound. Both use the same manually advanced clock.
