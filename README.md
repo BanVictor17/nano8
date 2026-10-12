@@ -29,8 +29,8 @@ timer, and UART peripherals accessed through memory-mapped I/O.
 
 The program counter is 8 bits wide and the ROM contains 256 words of 16 bits
 each. Advancing the PC by one selects the next instruction word. Instruction
-encoding and data memory address width have not been defined yet. The initial
-programs will be encoded manually in ROM.
+encoding is defined in [docs/isa.md](docs/isa.md). Data memory address width
+has not been defined yet. The initial programs will be encoded manually in ROM.
 
 ## 8-bit ALU
 
