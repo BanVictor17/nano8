@@ -4,10 +4,12 @@ A custom 8-bit, multi-cycle processor for the Tang Nano 9K FPGA board.
 
 ## Status
 
-The 8-bit ALU, eight-register file, 8-bit program counter, and synchronous
-instruction ROM are implemented. Icarus Verilog simulations pass for these
-modules and for the PC-to-ROM read timing. Instruction decoding and execution
-have not been implemented, and no board validation has been completed yet.
+The 8-bit ALU, eight-register file, 8-bit program counter, synchronous
+instruction ROM, and 16-bit instruction register are implemented. Icarus
+Verilog simulations pass for these modules and for the read and capture timing
+with the PC, ROM, and instruction register connected. Instruction decoding and
+execution have not been implemented, and no board validation has been
+completed yet.
 
 ## Target and tools
 
@@ -96,6 +98,18 @@ The current contents are test words:
 When the PC and ROM share a clock, the ROM reads the PC value from before the
 edge, including when the PC increments or loads an address. The new PC value
 selects the word for the next read.
+
+## Instruction register
+
+`rtl/instruction_register.sv` stores a 16-bit instruction word. On each rising
+clock edge, active-high synchronous reset clears the register, or `load_en`
+captures `instr_in`. Reset has priority over loading. With loading disabled,
+the stored word is preserved even when the ROM output changes.
+
+When the ROM and instruction register share a clock, the instruction register
+captures the ROM output from before the edge. A word produced by a ROM read
+can be captured on a later rising edge. The instruction register's enable
+allows the word to remain stable while the ROM reads another address.
 
 ## Simulation
 
@@ -189,3 +203,25 @@ Instruction ROM tests passed
 registered output timing. A second ROM instance in the testbench is connected
 to `pc8` to verify reads during PC incrementing, holding, loading, and
 wraparound. Both use the same manually advanced clock.
+
+Run the instruction register testbench from the same directory:
+
+```powershell
+New-Item -ItemType Directory -Path 'build' -Force | Out-Null
+& 'C:\iverilog\bin\iverilog.exe' -g2012 -Wall -s tb_instruction_register -o 'build\tb_instruction_register.vvp' 'rtl\instruction_register.sv' 'rtl\instruction_rom.sv' 'rtl\pc8.sv' 'sim\tb_instruction_register.sv'
+if ($LASTEXITCODE -ne 0) { throw 'Instruction register testbench compilation failed' }
+& 'C:\iverilog\bin\vvp.exe' 'build\tb_instruction_register.vvp'
+if ($LASTEXITCODE -ne 0) { throw 'Instruction register tests failed' }
+```
+
+Expected success message:
+
+```text
+Instruction register tests passed
+```
+
+`sim/tb_instruction_register.sv` checks reset priority, loading and holding
+16-bit words, and updating only on rising edges. A second instruction register
+is connected to the PC and ROM to check capture timing, preservation of the
+current word during ROM reads and PC loads, and capture during PC wraparound.
+Clock edges are advanced explicitly with `clock_cycles`.
